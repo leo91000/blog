@@ -1,7 +1,5 @@
-use crate::server::ServerError;
 use axum::http::header::SET_COOKIE;
 use axum::http::{HeaderName, HeaderValue};
-use cfg_if::cfg_if;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -26,12 +24,6 @@ static SESSIONS: LazyLock<RwLock<HashMap<String, SessionData>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
 async fn get_session_id() -> Result<String, ServerFnError> {
-    cfg_if! {
-        if #[cfg(not(feature = "ssr"))] {
-            compile_error!("Not in SSR mode");
-        }
-    };
-
     let header_map: axum::http::HeaderMap = leptos_axum::extract().await?;
 
     header_map
@@ -44,7 +36,7 @@ async fn get_session_id() -> Result<String, ServerFnError> {
                     .map(|cookie| cookie.to_string())
             })
         })
-        .ok_or_else(|| ServerError::Other("No session cookie found".to_string()).into())
+        .ok_or_else(|| ServerFnError::new("No session cookie found"))
 }
 
 pub async fn get_user() -> Result<Option<SessionUser>, ServerFnError> {
@@ -62,12 +54,6 @@ pub async fn get_user() -> Result<Option<SessionUser>, ServerFnError> {
 }
 
 pub async fn set_user(user: SessionUser) -> Result<(HeaderName, HeaderValue), ServerFnError> {
-    cfg_if! {
-        if #[cfg(not(feature = "ssr"))] {
-            compile_error!("Not in SSR mode");
-        }
-    };
-
     let session_id = uuid::Uuid::new_v4().to_string();
     let session_data = SessionData {
         user: Some(user),
@@ -88,12 +74,6 @@ pub async fn set_user(user: SessionUser) -> Result<(HeaderName, HeaderValue), Se
 }
 
 pub async fn clear_user() -> Result<(HeaderName, HeaderValue), ServerFnError> {
-    cfg_if! {
-        if #[cfg(not(feature = "ssr"))] {
-            compile_error!("Not in SSR mode");
-        }
-    };
-
     if let Ok(session_id) = get_session_id().await {
         SESSIONS.write()?.remove(&session_id);
     }

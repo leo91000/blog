@@ -1,8 +1,6 @@
 use crate::models::post::{NewPost, Post, UpdatePostData};
 use leptos::prelude::*;
 
-use super::{db::get_connection, ServerError};
-
 type Result<T> = std::result::Result<T, ServerFnError>;
 
 #[server(GetPosts, "/api/blog")]
@@ -34,7 +32,7 @@ pub async fn get_posts(only_published: bool) -> Result<Vec<Post>> {
 
 #[server(GetPost, "/api/blog")]
 pub async fn get_post(id: i64) -> Result<Post> {
-    let conn = get_connection().await?;
+    let conn = crate::server::db::get_connection().await?;
 
     let mut rows = conn
         .query(
@@ -44,7 +42,7 @@ pub async fn get_post(id: i64) -> Result<Post> {
         .await?;
 
     let Some(row) = rows.next().await? else {
-        return Err(ServerError::NotFound.into());
+        return Err(ServerFnError::new("Not found"));
     };
 
     let post = Post {
@@ -60,7 +58,7 @@ pub async fn get_post(id: i64) -> Result<Post> {
     if !post.published {
         let user = crate::server::session::get_user().await?;
         if user.is_none_or(|u| !u.is_admin) {
-            return Err(ServerError::NotFound.into());
+            return Err(ServerFnError::new("Not found"));
         }
     }
 
@@ -72,10 +70,10 @@ pub async fn create_post(new_post: NewPost) -> Result<Post> {
     // Check if user is admin
     let user = crate::server::session::get_user().await?;
     if user.is_none_or(|u| !u.is_admin) {
-        return Err(ServerError::Forbidden.into());
+        return Err(ServerFnError::new("Forbidden"));
     }
 
-    let conn = get_connection().await?;
+    let conn = crate::server::db::get_connection().await?;
 
     // Get current timestamp
     let now = chrono::Utc::now();
@@ -87,7 +85,7 @@ pub async fn create_post(new_post: NewPost) -> Result<Post> {
     ).await?;
 
     let Some(row) = rows.next().await? else {
-        return Err(ServerError::Other("Failed to insert post".to_string()).into());
+        return Err(ServerFnError::new("Failed to insert post"));
     };
 
     let id = row.get(0)?;
@@ -110,10 +108,10 @@ pub async fn update_post(update: UpdatePostData) -> Result<Post> {
     // Check if user is admin
     let user = crate::server::session::get_user().await?;
     if user.is_none_or(|u| !u.is_admin) {
-        return Err(ServerError::Forbidden.into());
+        return Err(ServerFnError::new("Forbidden"));
     }
 
-    let conn = get_connection().await?;
+    let conn = crate::server::db::get_connection().await?;
 
     // Get current timestamp
     let now = chrono::Utc::now();
@@ -133,7 +131,7 @@ pub async fn update_post(update: UpdatePostData) -> Result<Post> {
         .await?;
 
     if result == 0 {
-        return Err(ServerError::NotFound.into());
+        return Err(ServerFnError::new("Not found"));
     }
 
     // Get the updated post
@@ -145,10 +143,10 @@ pub async fn delete_post(id: i64) -> Result<()> {
     // Check if user is admin
     let user = crate::server::session::get_user().await?;
     if user.is_none_or(|u| !u.is_admin) {
-        return Err(ServerError::Forbidden.into());
+        return Err(ServerFnError::new("Forbidden"));
     }
 
-    let conn = get_connection().await?;
+    let conn = crate::server::db::get_connection().await?;
 
     // Delete the post
     let result = conn
@@ -156,7 +154,7 @@ pub async fn delete_post(id: i64) -> Result<()> {
         .await?;
 
     if result == 0 {
-        return Err(ServerError::NotFound.into());
+        return Err(ServerFnError::new("Not found"));
     }
 
     Ok(())

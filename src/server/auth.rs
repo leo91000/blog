@@ -1,25 +1,26 @@
-use crate::models::user::{LoginCredentials, NewUser, User};
-use crate::server::session::SessionUser;
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
 use leptos::prelude::*;
-use libsql::params;
 
-use super::db::get_connection;
-use super::{session, ServerError};
+use crate::models::user::{LoginCredentials, NewUser, User};
 
 type Result<T> = std::result::Result<T, ServerFnError>;
 
 #[server(Register, "/api/auth")]
 pub async fn register(new_user: NewUser) -> Result<()> {
+    use argon2::{
+        password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+        Argon2,
+    };
+    use leptos::prelude::*;
+    use libsql::params;
+
+    use super::db::get_connection;
+
     // Hash the password
     let salt = SaltString::generate(&mut OsRng);
     let argon2_config = Argon2::default();
     let password_hash = argon2_config
         .hash_password(new_user.password.as_bytes(), &salt)
-        .map_err(|e| ServerError::Other(e.to_string()))?
+        .map_err(|e| ServerFnError::new(e.to_string()))?
         .to_string();
 
     let conn = get_connection().await?;
@@ -36,9 +37,9 @@ pub async fn register(new_user: NewUser) -> Result<()> {
         Ok(_) => Ok(()),
         Err(e) => {
             if e.to_string().contains("UNIQUE constraint failed") {
-                Err(ServerError::Auth("Username already exists".to_string()).into())
+                Err(ServerFnError::new("Username already exists"))
             } else {
-                Err(ServerError::Database(e).into())
+                Err(ServerFnError::new("Database error"))
             }
         }
     }
@@ -46,6 +47,18 @@ pub async fn register(new_user: NewUser) -> Result<()> {
 
 #[server(Login, "/api/auth")]
 pub async fn login(credentials: LoginCredentials) -> Result<User> {
+    use crate::models::user::User;
+    use crate::server::session::SessionUser;
+    use argon2::{
+        password_hash::{PasswordHash, PasswordVerifier},
+        Argon2,
+    };
+    use leptos::prelude::*;
+    use libsql::params;
+
+    use super::db::get_connection;
+    use super::session;
+
     let conn = get_connection().await?;
 
     // Fetch the user
@@ -57,23 +70,21 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
     let first_row = rows.next().await?;
 
     let Some(row) = first_row else {
-        return Err(ServerError::Auth(
-            "Invalid username or password".to_string(),
-        ).into());
+        return Err(ServerFnError::new("Invalid username or password"));
     };
 
     let password_hash: String = row.get(2)?;
 
     // Verify the password
-    let parsed_hash = PasswordHash::new(&password_hash)
-        .map_err(|_| ServerError::Auth("Failed to parse password hash".to_string()))?;
+    let parsed_hash =
+        PasswordHash::new(&password_hash).map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let argon2 = Argon2::default();
     if argon2
         .verify_password(credentials.password.as_bytes(), &parsed_hash)
         .is_err()
     {
-        return Err(ServerError::Auth("Invalid username or password".to_string()).into());
+        return Err(ServerFnError::new("Invalid username or password"));
     }
 
     // Get user data
@@ -98,12 +109,19 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
 
 #[server(Logout, "/api/auth")]
 pub async fn logout() -> Result<()> {
+    use super::session;
     session::clear_user().await?;
     Ok(())
 }
 
 #[server(GetCurrentUser, "/api/auth")]
 pub async fn get_current_user() -> Result<Option<User>> {
+    use crate::models::user::User;
+
+    use libsql::params;
+
+    use super::db::get_connection;
+    use super::session;
     let session_user = session::get_user().await?;
 
     if let Some(session_user) = session_user {

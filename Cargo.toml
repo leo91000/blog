@@ -17,13 +17,13 @@ tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "=0.2.100", optional = true }
 cfg-if = "1.0.0"
 thiserror = "2.0.11"
-libsql = { version = "0.6.0", features = ["serde"] }
-argon2 = "0.5.3"
+libsql = { version = "0.6.0", features = ["serde"], optional = true }
+argon2 = { version = "0.5.3", optional = true }
 chrono = { version = "0.4.40", features = ["serde"] }
-rand = "0.9.0"
+rand = { version = "0.9.0", optional = true }
 serde = { version = "1.0.218", features = ["derive"] }
 serde_json = "1.0.139"
-uuid = { version = "1.15.1", features = ["v4", "v7"] }
+uuid = { version = "1.15.1", features = ["v4", "v7"], optional = true }
 
 [features]
 hydrate = ["leptos/hydrate", "dep:console_error_panic_hook", "dep:wasm-bindgen"]
@@ -31,6 +31,10 @@ ssr = [
     "dep:axum",
     "dep:tokio",
     "dep:leptos_axum",
+    "dep:libsql",
+    "dep:argon2",
+    "dep:rand",
+    "dep:uuid",
     "leptos/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr",
