@@ -4,12 +4,17 @@
   "description": "Leptos blog for Léo Coletta",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:tailwind": "tailwindcss -i ./style/tailwind.css -o ./target/tmp/tailwind.css",
+    "watch:tailwind": "tailwindcss -i ./style/tailwind.css -o ./target/tmp/tailwind.css --watch",
+    "tailwind:upgrade": "./node_modules/.bin/upgrade"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "tailwindcss": "^4.0.9"
+    "@tailwindcss/cli": "^4.0.11",
+    "@tailwindcss/upgrade": "^4.0.11",
+    "tailwindcss": "^4.0.11"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

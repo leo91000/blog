@@ -16,7 +16,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <HydrationScripts options/>
                 <MetaTags/>
             </head>
-            <body>
+            <body class="bg-gray-50 min-h-screen flex flex-col">
                 <App/>
             </body>
         </html>
@@ -34,7 +34,7 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="leptos" href="/pkg/blog.css"/>
 
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Léo Coletta - Software Engineer" />
 
         // content for this welcome page
         <Router>
