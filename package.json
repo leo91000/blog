@@ -1,5 +1,7 @@
 {
   "name": "blog",
+  "private": true,
+  "type": "commonjs",
   "version": "1.0.0",
   "description": "Leptos blog for Léo Coletta",
   "main": "index.js",

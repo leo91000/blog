@@ -1,6 +1,7 @@
 use axum::http::header::SET_COOKIE;
 use axum::http::{HeaderName, HeaderValue};
 use leptos::prelude::*;
+use leptos_axum::ResponseOptions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
@@ -53,7 +54,7 @@ pub async fn get_user() -> Result<Option<SessionUser>, ServerFnError> {
     Ok(None)
 }
 
-pub async fn set_user(user: SessionUser) -> Result<(HeaderName, HeaderValue), ServerFnError> {
+pub async fn set_user(user: SessionUser) -> Result<(), ServerFnError> {
     let session_id = uuid::Uuid::new_v4().to_string();
     let session_data = SessionData {
         user: Some(user),
@@ -63,17 +64,18 @@ pub async fn set_user(user: SessionUser) -> Result<(HeaderName, HeaderValue), Se
     SESSIONS.write()?.insert(session_id.clone(), session_data);
 
     let header_name: HeaderName = "Set-Cookie".parse().unwrap();
-    let header_value: HeaderValue = format!(
-        "session={}; Path=/; HttpOnly; SameSite=Strict; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    let header_value: HeaderValue = HeaderValue::from_str(&format!(
+        "session={}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400",
         session_id
-    )
-    .parse()
-    .unwrap();
+    ))?;
 
-    Ok((header_name, header_value))
+    let response = expect_context::<ResponseOptions>();
+    response.insert_header(header_name, header_value);
+
+    Ok(())
 }
 
-pub async fn clear_user() -> Result<(HeaderName, HeaderValue), ServerFnError> {
+pub async fn clear_user() -> Result<(), ServerFnError> {
     if let Ok(session_id) = get_session_id().await {
         SESSIONS.write()?.remove(&session_id);
     }
@@ -83,5 +85,9 @@ pub async fn clear_user() -> Result<(HeaderName, HeaderValue), ServerFnError> {
         "session=; Path=/; HttpOnly; SameSite=Strict; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
             .parse()
             .unwrap();
-    Ok((header_name, header_value))
+
+    let response = expect_context::<ResponseOptions>();
+    response.insert_header(header_name, header_value);
+
+    Ok(())
 }

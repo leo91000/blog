@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 pub struct User {
     pub id: i64,
     pub username: String,
-    #[serde(skip_serializing)]
+    #[cfg(feature = "ssr")]
+    #[cfg_attr(feature = "ssr", serde(skip_deserializing))]
     pub password_hash: String,
     pub is_admin: bool,
     pub created_at: DateTime<Utc>,

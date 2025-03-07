@@ -6,7 +6,7 @@ type Result<T> = std::result::Result<T, libsql::Error>;
 
 static DB_INSTANCE: OnceLock<Database> = OnceLock::new();
 
-pub async fn init_db() -> Result<Database> {
+pub async fn init_db() -> Result<()> {
     // Check if we should use Turso or local SQLite
     let use_turso = env::var("USE_TURSO").unwrap_or_else(|_| "false".to_string()) == "true";
 
@@ -49,7 +49,8 @@ pub async fn init_db() -> Result<Database> {
     )
     .await?;
 
-    Ok(db)
+    DB_INSTANCE.set(db).expect("Database already initialized");
+    Ok(())
 }
 
 pub fn get_db() -> &'static Database {

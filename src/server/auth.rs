@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use leptos::prelude::*;
 
 use crate::models::user::{LoginCredentials, NewUser, User};
@@ -7,8 +8,8 @@ type Result<T> = std::result::Result<T, ServerFnError>;
 #[server(Register, "/api/auth")]
 pub async fn register(new_user: NewUser) -> Result<()> {
     use argon2::{
+        password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
         Argon2,
-        password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
     };
     use leptos::prelude::*;
     use libsql::params;
@@ -50,8 +51,8 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
     use crate::models::user::User;
     use crate::server::session::SessionUser;
     use argon2::{
-        Argon2,
         password_hash::{PasswordHash, PasswordVerifier},
+        Argon2,
     };
     use leptos::prelude::*;
     use libsql::params;
@@ -93,7 +94,11 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
         username: row.get(1)?,
         password_hash,
         is_admin: row.get(3)?,
-        created_at: row.get::<String>(4)?.parse()?,
+        created_at: NaiveDateTime::parse_from_str(
+            row.get::<String>(4)?.as_str(),
+            "%Y-%m-%d %H:%M:%S",
+        )?
+        .and_utc(),
     };
 
     // Set the user in session
@@ -102,7 +107,9 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
         username: user.username.clone(),
         is_admin: user.is_admin,
     };
-    session::set_user(session_user).await?;
+
+    session::set_user(session_user.clone()).await?;
+    println!("user: {:?}", user);
 
     Ok(user)
 }
