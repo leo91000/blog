@@ -7,8 +7,8 @@ type Result<T> = std::result::Result<T, ServerFnError>;
 #[server(Register, "/api/auth")]
 pub async fn register(new_user: NewUser) -> Result<()> {
     use argon2::{
-        password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
         Argon2,
+        password_hash::{PasswordHasher, SaltString, rand_core::OsRng},
     };
     use leptos::prelude::*;
     use libsql::params;
@@ -50,8 +50,8 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
     use crate::models::user::User;
     use crate::server::session::SessionUser;
     use argon2::{
-        password_hash::{PasswordHash, PasswordVerifier},
         Argon2,
+        password_hash::{PasswordHash, PasswordVerifier},
     };
     use leptos::prelude::*;
     use libsql::params;
