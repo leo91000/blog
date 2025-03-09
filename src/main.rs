@@ -2,7 +2,7 @@
 #[tokio::main]
 async fn main() {
     use axum::Router;
-    use blog::{app::*, server::db::init_db};
+    use blog::{app::*, server::utils::db::init_db};
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use tower_http::trace::{self, TraceLayer};

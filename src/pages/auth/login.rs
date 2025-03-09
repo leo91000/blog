@@ -1,3 +1,4 @@
+use crate::app::CurrentUser;
 use crate::models::user::{LoginCredentials, User};
 use crate::server::auth::login;
 use leptos::{ev, prelude::*, task::spawn_local};
@@ -31,8 +32,8 @@ pub fn LoginPage() -> impl IntoView {
 
         // Create login credentials
         let credentials = LoginCredentials {
-            username: username.get(),
-            password: password.get(),
+            username: username.get_untracked(),
+            password: password.get_untracked(),
         };
 
         spawn_local(async move {
@@ -41,17 +42,24 @@ pub fn LoginPage() -> impl IntoView {
         });
     };
 
+    // Get user resource from context to refresh after login
+    let user_resource = expect_context::<CurrentUser>();
+
     // Handle action response
     Effect::new(move |_| {
         if let Some(result) = login_result.get() {
             match result {
                 Ok(_) => {
+                    // Refresh user resource to update the UI
+                    user_resource.refetch();
+
                     // Redirect to home on success
                     navigate("/", Default::default());
                 }
                 Err(e) => {
                     // Show error message
                     set_error.set(Some(e.to_string()));
+                    user_resource.set(None);
                 }
             }
         }
@@ -126,4 +134,3 @@ pub fn LoginPage() -> impl IntoView {
         </div>
     }
 }
-

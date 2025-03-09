@@ -1,4 +1,3 @@
-use chrono::NaiveDateTime;
 use leptos::prelude::*;
 
 use crate::models::user::{LoginCredentials, NewUser, User};
@@ -14,7 +13,7 @@ pub async fn register(new_user: NewUser) -> Result<()> {
     use leptos::prelude::*;
     use libsql::params;
 
-    use super::db::get_connection;
+    use super::utils::db::get_db;
 
     // Hash the password
     let salt = SaltString::generate(&mut OsRng);
@@ -24,7 +23,7 @@ pub async fn register(new_user: NewUser) -> Result<()> {
         .map_err(|e| ServerFnError::new(e.to_string()))?
         .to_string();
 
-    let conn = get_connection().await?;
+    let conn = get_db();
 
     // Insert the new user
     let result = conn
@@ -49,7 +48,6 @@ pub async fn register(new_user: NewUser) -> Result<()> {
 #[server(Login, "/api/auth")]
 pub async fn login(credentials: LoginCredentials) -> Result<User> {
     use crate::models::user::User;
-    use crate::server::session::SessionUser;
     use argon2::{
         password_hash::{PasswordHash, PasswordVerifier},
         Argon2,
@@ -57,14 +55,14 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
     use leptos::prelude::*;
     use libsql::params;
 
-    use super::db::get_connection;
-    use super::session;
+    use super::utils::db::get_db;
+    use super::utils::session;
 
-    let conn = get_connection().await?;
+    let conn = get_db();
 
     // Fetch the user
     let mut rows = conn.query(
-        "SELECT id, username, password_hash, is_admin, created_at FROM users WHERE username = ?",
+        "SELECT id, username, password_hash, is_admin, theme_preference, created_at FROM users WHERE username = ?",
         params![credentials.username]
     ).await?;
 
@@ -94,7 +92,8 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
         username: row.get(1)?,
         password_hash,
         is_admin: row.get(3)?,
-        created_at: NaiveDateTime::parse_from_str(
+        theme_preference: crate::models::session::ThemePreference::from_libsql_value(row.get(4)?),
+        created_at: chrono::NaiveDateTime::parse_from_str(
             row.get::<String>(4)?.as_str(),
             "%Y-%m-%d %H:%M:%S",
         )?
@@ -102,13 +101,8 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
     };
 
     // Set the user in session
-    let session_user = SessionUser {
-        id: user.id,
-        username: user.username.clone(),
-        is_admin: user.is_admin,
-    };
+    session::set_user_session(&user.get_session_user()).await?;
 
-    session::set_user(session_user.clone()).await?;
     println!("user: {:?}", user);
 
     Ok(user)
@@ -116,7 +110,7 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
 
 #[server(Logout, "/api/auth")]
 pub async fn logout() -> Result<()> {
-    use super::session;
+    use super::utils::session;
     session::clear_user().await?;
     Ok(())
 }
@@ -127,16 +121,17 @@ pub async fn get_current_user() -> Result<Option<User>> {
 
     use libsql::params;
 
-    use super::db::get_connection;
-    use super::session;
-    let session_user = session::get_user().await?;
+    use super::utils::db::get_db;
+    use super::utils::session;
+
+    let session_user = session::get_user_session().await?;
 
     if let Some(session_user) = session_user {
-        let conn = get_connection().await?;
+        let conn = get_db();
 
         let mut rows = conn
             .query(
-                "SELECT id, username, password_hash, is_admin, created_at FROM users WHERE id = ?",
+                "SELECT id, username, password_hash, is_admin, theme_preference, created_at FROM users WHERE id = ?",
                 params![session_user.id],
             )
             .await?;
@@ -150,8 +145,20 @@ pub async fn get_current_user() -> Result<Option<User>> {
             username: row.get(1)?,
             password_hash: row.get(2)?,
             is_admin: row.get(3)?,
-            created_at: row.get::<String>(4)?.parse()?,
+            theme_preference: crate::models::session::ThemePreference::from_libsql_value(
+                row.get(4)?,
+            ),
+            created_at: chrono::NaiveDateTime::parse_from_str(
+                &row.get::<String>(5)?,
+                "%Y-%m-%d %H:%M:%S",
+            )?
+            .and_utc(),
         };
+
+        let should_be_session_user = user.get_session_user();
+        if should_be_session_user != session_user {
+            session::set_user_session(&should_be_session_user).await?;
+        }
 
         Ok(Some(user))
     } else {

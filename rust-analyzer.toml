@@ -1,2 +1,5 @@
 [rustfmt]
 overrideCommand = ["leptosfmt", "--stdin", "--rustfmt"]
+
+[check]
+target_dir = "target/rust-analyzer"

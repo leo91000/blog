@@ -1,93 +1,75 @@
-use axum::http::header::SET_COOKIE;
-use axum::http::{HeaderName, HeaderValue};
 use leptos::prelude::*;
-use leptos_axum::ResponseOptions;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{LazyLock, RwLock};
-use std::time::{Duration, Instant};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SessionUser {
-    pub id: i64,
-    pub username: String,
-    pub is_admin: bool,
-}
+use crate::models::session::ThemePreference;
 
-// For simplicity, we're using a server-side memory store
-// In production, you'd want to use Redis, database, or another persistent store
-struct SessionData {
-    user: Option<SessionUser>,
-    expires: Instant,
-}
+type Result<T> = std::result::Result<T, ServerFnError>;
 
-static SESSIONS: LazyLock<RwLock<HashMap<String, SessionData>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
+#[server(GetThemepPreference, "/api/session")]
+pub async fn get_theme_preference() -> Result<ThemePreference> {
+    use super::utils::session::{get_user_session, set_user_session};
+    use crate::models::session::SessionUser;
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
 
-async fn get_session_id() -> Result<String, ServerFnError> {
-    let header_map: axum::http::HeaderMap = leptos_axum::extract().await?;
+    match get_user_session().await {
+        Ok(Some(user)) => Ok(user.theme_preference),
+        Ok(None) => {
+            let request_header: HeaderMap = extract().await?;
 
-    header_map
-        .get("cookie")
-        .and_then(|cookies| {
-            cookies.to_str().ok()?.split(';').find_map(|cookie| {
-                let cookie = cookie.trim();
-                cookie
-                    .strip_prefix("session=")
-                    .map(|cookie| cookie.to_string())
+            let theme_preference: ThemePreference = request_header
+                .get("Sec-CH-Prefers-Color-Scheme")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(ThemePreference::System);
+
+            set_user_session(&SessionUser {
+                id: None,
+                username: None,
+                is_admin: false,
+                theme_preference,
             })
-        })
-        .ok_or_else(|| ServerFnError::new("No session cookie found"))
-}
-
-pub async fn get_user() -> Result<Option<SessionUser>, ServerFnError> {
-    let Ok(session_id) = get_session_id().await else {
-        return Ok(None);
-    };
-
-    if let Some(session) = SESSIONS.read()?.get(&session_id) {
-        if session.expires > Instant::now() {
-            return Ok(session.user.clone());
+            .await?;
+            Ok(ThemePreference::System)
         }
+        _ => Err(ServerFnError::new("Not found")),
     }
-
-    Ok(None)
 }
 
-pub async fn set_user(user: SessionUser) -> Result<(), ServerFnError> {
-    let session_id = uuid::Uuid::new_v4().to_string();
-    let session_data = SessionData {
-        user: Some(user),
-        expires: Instant::now() + Duration::from_secs(24 * 60 * 60), // 24 hours
+#[server(SetThemePreference, "/api/session")]
+pub async fn set_theme_preference(theme_preference: ThemePreference) -> Result<()> {
+    use super::utils::{
+        db::get_db,
+        session::{get_user_session, set_user_session},
     };
+    use crate::models::session::SessionUser;
 
-    SESSIONS.write()?.insert(session_id.clone(), session_data);
-
-    let header_name: HeaderName = "Set-Cookie".parse().unwrap();
-    let header_value: HeaderValue = HeaderValue::from_str(&format!(
-        "session={}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400",
-        session_id
-    ))?;
-
-    let response = expect_context::<ResponseOptions>();
-    response.insert_header(header_name, header_value);
-
-    Ok(())
-}
-
-pub async fn clear_user() -> Result<(), ServerFnError> {
-    if let Ok(session_id) = get_session_id().await {
-        SESSIONS.write()?.remove(&session_id);
+    match get_user_session().await {
+        Ok(Some(mut user)) => {
+            if user.theme_preference == theme_preference {
+                return Ok(());
+            }
+            user.theme_preference = theme_preference;
+            set_user_session(&user).await?;
+            if let Some(user_id) = user.id {
+                let conn = get_db();
+                conn.execute(
+                    "UPDATE users SET theme_preference = ? WHERE id = ?",
+                    libsql::params![theme_preference, user_id],
+                )
+                .await?;
+            }
+            Ok(())
+        }
+        Ok(None) => {
+            set_user_session(&SessionUser {
+                id: None,
+                username: None,
+                is_admin: false,
+                theme_preference,
+            })
+            .await?;
+            Ok(())
+        }
+        _ => Err(ServerFnError::new("Not found")),
     }
-
-    let header_name = SET_COOKIE;
-    let header_value: HeaderValue =
-        "session=; Path=/; HttpOnly; SameSite=Strict; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
-            .parse()
-            .unwrap();
-
-    let response = expect_context::<ResponseOptions>();
-    response.insert_header(header_name, header_value);
-
-    Ok(())
 }

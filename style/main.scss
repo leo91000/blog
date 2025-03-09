@@ -1,4 +1,25 @@
 body {
-	font-family: sans-serif;
-	text-align: center;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  text-align: center;
+}
+
+/* Custom animation for hover effects */
+@keyframes gentle-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.hover-grow {
+  transition: all 0.3s ease;
+  &:hover {
+    transform: translateY(-3px);
+  }
+}
+
+.card {
+  transition: all 0.3s ease;
+  &:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
 }

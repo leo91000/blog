@@ -5,7 +5,7 @@ type Result<T> = std::result::Result<T, ServerFnError>;
 
 #[server(GetPosts, "/api/blog")]
 pub async fn get_posts(only_published: bool) -> Result<Vec<Post>> {
-    let conn = crate::server::db::get_connection().await?;
+    let conn = crate::server::utils::db::get_db();
 
     let query = if only_published {
         "SELECT id, title, content, created_at, updated_at, published FROM posts WHERE published = TRUE ORDER BY created_at DESC"
@@ -32,7 +32,7 @@ pub async fn get_posts(only_published: bool) -> Result<Vec<Post>> {
 
 #[server(GetPost, "/api/blog")]
 pub async fn get_post(id: i64) -> Result<Post> {
-    let conn = crate::server::db::get_connection().await?;
+    let conn = crate::server::utils::db::get_db();
 
     let mut rows = conn
         .query(
@@ -56,7 +56,7 @@ pub async fn get_post(id: i64) -> Result<Post> {
 
     // Check if the post is published or the user is admin
     if !post.published {
-        let user = crate::server::session::get_user().await?;
+        let user = crate::server::utils::session::get_user_session().await?;
         if user.is_none_or(|u| !u.is_admin) {
             return Err(ServerFnError::new("Not found"));
         }
@@ -67,13 +67,16 @@ pub async fn get_post(id: i64) -> Result<Post> {
 
 #[server(CreatePost, "/api/blog")]
 pub async fn create_post(new_post: NewPost) -> Result<Post> {
+    use tracing::debug;
+
     // Check if user is admin
-    let user = crate::server::session::get_user().await?;
-    if user.is_none_or(|u| !u.is_admin) {
+    let user = crate::server::utils::session::get_user_session().await?;
+    if user.as_ref().is_none_or(|u| !u.is_admin) {
+        debug!("Forbidden for user: {:?}", &user);
         return Err(ServerFnError::new("Forbidden"));
     }
 
-    let conn = crate::server::db::get_connection().await?;
+    let conn = crate::server::utils::db::get_db();
 
     // Get current timestamp
     let now = chrono::Utc::now();
@@ -106,12 +109,12 @@ pub async fn create_post(new_post: NewPost) -> Result<Post> {
 #[server(UpdatePost, "/api/blog")]
 pub async fn update_post(update: UpdatePostData) -> Result<Post> {
     // Check if user is admin
-    let user = crate::server::session::get_user().await?;
+    let user = crate::server::utils::session::get_user_session().await?;
     if user.is_none_or(|u| !u.is_admin) {
         return Err(ServerFnError::new("Forbidden"));
     }
 
-    let conn = crate::server::db::get_connection().await?;
+    let conn = crate::server::utils::db::get_db();
 
     // Get current timestamp
     let now = chrono::Utc::now();
@@ -141,12 +144,12 @@ pub async fn update_post(update: UpdatePostData) -> Result<Post> {
 #[server(DeletePost, "/api/blog")]
 pub async fn delete_post(id: i64) -> Result<()> {
     // Check if user is admin
-    let user = crate::server::session::get_user().await?;
+    let user = crate::server::utils::session::get_user_session().await?;
     if user.is_none_or(|u| !u.is_admin) {
         return Err(ServerFnError::new("Forbidden"));
     }
 
-    let conn = crate::server::db::get_connection().await?;
+    let conn = crate::server::utils::db::get_db();
 
     // Delete the post
     let result = conn
