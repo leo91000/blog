@@ -66,8 +66,14 @@ pub fn LoginPage() -> impl IntoView {
     });
 
     view! {
-        <div class="max-w-md mx-auto bg-white p-8 rounded shadow">
-            <h1 class="text-2xl font-bold mb-6">"Login"</h1>
+        <div class="max-w-md mx-auto bg-white/90 dark:bg-primary-800/90 p-8 rounded-xl shadow-lg dark:shadow-primary-900/50 backdrop-blur-sm border border-gray-100 dark:border-primary-700 w-full">
+            <div class="text-center mb-8">
+                <div class="inline-flex p-2 bg-gradient-to-br from-primary-400 to-accent-500 rounded-full mb-4">
+                    <span class="i-mdi-account text-white h-8 w-8"></span>
+                </div>
+                <h1 class="text-3xl font-bold dark:text-white">"Welcome Back"</h1>
+                <p class="text-gray-600 dark:text-gray-300 mt-2">"Login to your account"</p>
+            </div>
 
             {move || {
                 error
@@ -75,59 +81,82 @@ pub fn LoginPage() -> impl IntoView {
                     .map(|err| {
                         view! {
                             <div
-                                class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"
+                                class="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
                                 role="alert"
                             >
+                                <span class="i-mdi-alert-circle text-lg"></span>
                                 <span class="block sm:inline">{err}</span>
                             </div>
                         }
                     })
             }}
 
-            <form on:submit=on_submit>
-                <div class="mb-4">
-                    <label for="username" class="block text-gray-700 font-bold mb-2">
+            <form on:submit=on_submit class="space-y-6">
+                <div>
+                    <label
+                        for="username"
+                        class="block text-gray-700 dark:text-gray-200 font-medium mb-2 flex items-center gap-1"
+                    >
+                        <span class="i-mdi-account-outline"></span>
                         "Username"
                     </label>
-                    <input
-                        type="text"
-                        id="username"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        placeholder="Enter your username"
-                        on:input=move |ev| {
-                            set_username.set(event_target_value(&ev));
-                        }
-                        prop:value=username
-                    />
+                    <div class="relative">
+                        <span class="absolute left-3 inset-y-0 flex items-center text-gray-400 dark:text-gray-300">
+                            <span class="i-mdi-account text-lg"></span>
+                        </span>
+                        <input
+                            type="text"
+                            id="username"
+                            class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-primary-600 dark:bg-primary-700/50 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                            placeholder="Enter your username"
+                            on:input=move |ev| {
+                                set_username.set(event_target_value(&ev));
+                            }
+                            prop:value=username
+                        />
+                    </div>
                 </div>
 
-                <div class="mb-6">
-                    <label for="password" class="block text-gray-700 font-bold mb-2">
+                <div>
+                    <label
+                        for="password"
+                        class="block text-gray-700 dark:text-gray-200 font-medium mb-2 flex items-center gap-1"
+                    >
+                        <span class="i-mdi-lock-outline"></span>
                         "Password"
                     </label>
-                    <input
-                        type="password"
-                        id="password"
-                        class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                        placeholder="Enter your password"
-                        on:input=move |ev| {
-                            set_password.set(event_target_value(&ev));
-                        }
-                        prop:value=password
-                    />
+                    <div class="relative">
+                        <span class="absolute left-3 inset-y-0 flex items-center text-gray-400 dark:text-gray-300">
+                            <span class="i-mdi-lock text-lg"></span>
+                        </span>
+                        <input
+                            type="password"
+                            id="password"
+                            class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-primary-600 dark:bg-primary-700/50 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                            placeholder="Enter your password"
+                            on:input=move |ev| {
+                                set_password.set(event_target_value(&ev));
+                            }
+                            prop:value=password
+                        />
+                    </div>
                 </div>
 
                 <button
                     type="submit"
-                    class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:bg-blue-600"
+                    class="w-full bg-gradient-to-r from-primary-500 to-accent-500 text-white py-3 px-4 rounded-lg hover:from-primary-600 hover:to-accent-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-primary-800 transition-all duration-200 font-medium flex items-center justify-center gap-2"
                 >
+                    <span class="i-mdi-login"></span>
                     "Login"
                 </button>
             </form>
 
-            <p class="mt-4 text-center">
+            <p class="mt-6 text-center dark:text-gray-300 text-sm">
                 "Don't have an account? "
-                <A href="/signup" attr:class="text-blue-500 hover:underline">
+                <A
+                    href="/signup"
+                    attr:class="text-primary-600 dark:text-primary-400 hover:underline font-medium"
+                >
                     "Sign up"
                 </A>
             </p>

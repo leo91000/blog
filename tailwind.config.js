@@ -1,10 +1,13 @@
 /** @type {import('tailwindcss').Config} */
+const { iconsPlugin, getIconCollections } = require('@egoist/tailwindcss-icons')
+
 module.exports = {
   content: {
     relative: true,
     files: ["*.html", "./src/**/*.rs"],
   },
   mode: 'jit',
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -38,5 +41,10 @@ module.exports = {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    iconsPlugin({
+      collections: getIconCollections("all"),
+      scale: 1.2,
+    }),
+  ],
 }

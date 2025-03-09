@@ -44,78 +44,90 @@ pub fn PostPage() -> impl IntoView {
     let format_date = |date: chrono::DateTime<chrono::Utc>| date.format("%B %d, %Y").to_string();
 
     view! {
-        <div class="max-w-3xl mx-auto">
-            <Suspense fallback=move || {
-                view! { <p>"Loading..."</p> }
-            }>
+        <div class="max-w-3xl mx-auto w-full">
+            <Await future=post_resource.into_future() let:_server_post>
                 {move || match post_resource.get() {
-                    None => view! { <p>"Loading..."</p> }.into_any(),
+                    None => view! { <p class="dark:text-gray-300">"Loading..."</p> }.into_any(),
                     Some(Err(e)) => {
-                        view! { <p class="text-red-500">"Error loading post: " {e.to_string()}</p> }
+                        view! {
+                            <p class="text-red-500 dark:text-red-400">
+                                "Error loading post: " {e.to_string()}
+                            </p>
+                        }
                             .into_any()
                     }
                     Some(Ok(post)) => {
                         view! {
-                            <article class="bg-white p-8 rounded shadow">
-                                <h1 class="text-3xl font-bold mb-2">{post.title.clone()}</h1>
-                                <div class="text-gray-500 mb-6">{format_date(post.created_at)}</div>
+                            <article class="bg-white dark:bg-primary-800 p-8 rounded-xl shadow-lg dark:shadow-primary-900/50 border border-gray-100 dark:border-primary-700">
+                                <h1 class="text-3xl font-bold mb-2 dark:text-white">
+                                    {post.title.clone()}
+                                </h1>
+                                <div class="text-gray-500 dark:text-gray-300 mb-6">
+                                    {format_date(post.created_at)}
+                                </div>
 
                                 // Show admin actions if user is admin
-                                <Suspense fallback=move || {
-                                    view! { <p>"Loading..."</p> }
-                                }>
+                                <Await future=user_resource.into_future() let:_server_user>
                                     {move || {
                                         let user = user_resource.get().flatten();
-                                        if let Some(user) = user {
-                                            if user.is_admin {
-                                                view! {
-                                                    <div class="flex gap-4 mb-6">
-                                                        <A
-                                                            href=format!("/blog/{}/edit", post.id)
-                                                            attr:class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                                                        >
+                                        if user.is_some_and(|user| user.is_admin) {
+                                            view! {
+                                                <div class="flex gap-4 mb-6">
+                                                    <A
+                                                        href=format!("/blog/{}/edit", post.id)
+                                                        attr:class="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
+                                                    >
+                                                        <span class="flex items-center gap-2">
+                                                            <span class="i-mdi-pencil"></span>
                                                             "Edit"
-                                                        </A>
-                                                        <button
-                                                            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                                                            on:click=move |_| {
-                                                                handle_delete(post.id);
-                                                            }
-                                                        >
-                                                            "Delete"
-                                                        </button>
-                                                    </div>
-                                                }
-                                                    .into_any()
-                                            } else {
-                                                ().into_any()
+                                                        </span>
+                                                    </A>
+                                                    <button
+                                                        class="px-4 py-2 bg-red-500 dark:bg-red-600 text-white rounded-lg hover:bg-red-600 dark:hover:bg-red-700 transition-colors flex items-center gap-2"
+                                                        on:click=move |_| {
+                                                            handle_delete(post.id);
+                                                        }
+                                                    >
+                                                        <span class="i-mdi-delete"></span>
+                                                        "Delete"
+                                                    </button>
+                                                </div>
                                             }
+                                                .into_any()
                                         } else {
                                             ().into_any()
                                         }
                                     }}
-                                </Suspense>
+                                </Await>
 
-                                <div class="prose max-w-none">
+                                <div class="prose dark:prose-invert max-w-none">
                                     // Display content - in a real app, you might want to render markdown
                                     {post
                                         .content
                                         .split("\n")
-                                        .map(|p| view! { <p class="mb-4">{p.to_string()}</p> })
+                                        .map(|p| {
+                                            view! {
+                                                <p class="mb-4 dark:text-gray-200">{p.to_string()}</p>
+                                            }
+                                        })
                                         .collect::<Vec<_>>()}
                                 </div>
                             </article>
 
                             <div class="mt-8">
-                                <A href="/blog" attr:class="text-blue-600 hover:underline">
-                                    "← Back to all posts"
+                                <A
+                                    href="/blog"
+                                    attr:class="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                                >
+                                    <span class="i-mdi-arrow-left"></span>
+                                    "Back to all posts"
                                 </A>
                             </div>
                         }
                             .into_any()
                     }
                 }}
-            </Suspense>
+            </Await>
         </div>
     }
 }
