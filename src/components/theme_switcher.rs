@@ -1,78 +1,75 @@
 use crate::models::session::ThemePreference;
-use crate::server::session::{get_theme_preference, set_theme_preference};
-use leptos::logging::debug_warn;
+use crate::server::session::{
+    get_theme_preference, set_theme_preference, GetThemePreferenceResponse,
+};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
+use leptos_meta::Html;
 
-pub type ColorThemeSignalContext = (ReadSignal<ThemePreference>, WriteSignal<ThemePreference>);
-
-pub fn use_color_theme() -> ColorThemeSignalContext {
-    let current_theme_signal = use_context::<ColorThemeSignalContext>();
-    if let Some(current_theme_signal) = current_theme_signal {
-        return current_theme_signal;
-    }
-
-    let current_theme_signal = signal(ThemePreference::System);
-    provide_context(current_theme_signal);
-
-    current_theme_signal
-}
-
-pub type ThemeServerResourceContext = OnceResource<Result<ThemePreference, ServerFnError>>;
-pub fn use_theme_server_resource() -> ThemeServerResourceContext {
-    let current_theme_server_resource = use_context::<ThemeServerResourceContext>();
-    if let Some(current_theme_server_resource) = current_theme_server_resource {
-        return current_theme_server_resource;
-    }
-
-    let current_theme_server_resource = OnceResource::new(async { get_theme_preference().await });
-    provide_context(current_theme_server_resource);
-
-    current_theme_server_resource
+// Define a shared theme context type for use across components
+#[derive(Copy, Clone, Debug)]
+pub struct ThemeContext {
+    pub current_theme: ReadSignal<ThemePreference>,
+    pub set_theme: WriteSignal<ThemePreference>,
 }
 
 #[component]
+fn ThemeProviderInner(
+    children: Children,
+    server_theme: GetThemePreferenceResponse,
+) -> impl IntoView {
+    let (current_theme, set_current_theme) = signal(server_theme.theme_preference);
+    let theme_ctx = ThemeContext {
+        current_theme,
+        set_theme: set_current_theme,
+    };
+    provide_context(theme_ctx);
+    let dark_class = move || {
+        let prefer_dark = server_theme
+            .theme_preference_header
+            .is_some_and(|t| t == ThemePreference::Dark);
+        current_theme.get() == ThemePreference::Dark
+            || (prefer_dark && current_theme.get() == ThemePreference::System)
+    };
+    view! {
+        {children()}
+        <Html {..} class:dark=dark_class />
+    }
+}
+
+#[component]
+pub fn ThemeProvider(children: Children) -> impl IntoView {
+    let theme_resource =
+        OnceResource::new(async { get_theme_preference().await.unwrap_or_default() });
+
+    view! {
+        <Await future=theme_resource.into_future() let:server_theme>
+            <ThemeProviderInner server_theme=server_theme.clone()>{children()}</ThemeProviderInner>
+        </Await>
+    }
+}
+
+// ThemeSwitcher component that uses the shared context
+#[component]
 pub fn ThemeSwitcher() -> impl IntoView {
-    let theme_resource = use_theme_server_resource();
-    let (current_theme, set_current_theme) = use_color_theme();
+    // Try to use the existing theme context
+    let theme_ctx = expect_context::<ThemeContext>();
 
-    // Update the theme when resource loads
-    Effect::new(move || {
-        if let Some(Ok(theme)) = theme_resource.get() {
-            set_current_theme.set(theme);
-        }
-    });
+    // If no context is available, create a local theme state
+    let current_theme = theme_ctx.current_theme;
+    let set_current_theme = theme_ctx.set_theme;
 
-    // Handle theme toggle
     let toggle_theme = move |_| {
         let new_theme = match current_theme.get() {
             ThemePreference::System => ThemePreference::Light,
             ThemePreference::Light => ThemePreference::Dark,
             ThemePreference::Dark => ThemePreference::System,
         };
-
-        leptos::logging::log!("new_theme: {:?}", new_theme);
         set_current_theme.set(new_theme);
-
-        // Call server function to update preference
         spawn_local(async move {
             let _ = set_theme_preference(new_theme).await;
         });
     };
-
-    Effect::new(move || {
-        let theme_class = match current_theme.get() {
-            ThemePreference::Light => Some("light"),
-            ThemePreference::Dark => Some("dark"),
-            ThemePreference::System => None,
-        };
-
-        debug_warn!(
-            "theme_class: {:?}, todo: add class to html root",
-            theme_class
-        );
-        // How to add class to html root here ?
-    });
 
     let theme_text = move || match current_theme.get() {
         ThemePreference::System => "System",
@@ -81,32 +78,18 @@ pub fn ThemeSwitcher() -> impl IntoView {
     };
 
     let theme_icon = move || match current_theme.get() {
-        ThemePreference::System => "🖥️",
-        ThemePreference::Light => "☀️",
-        ThemePreference::Dark => "🌙",
+        ThemePreference::System => "i-mdi-monitor",
+        ThemePreference::Light => "i-mdi-white-balance-sunny",
+        ThemePreference::Dark => "i-mdi-moon-waning-crescent",
     };
 
     view! {
-        <Transition fallback=|| {
-            view! { "Loading theme..." }
-        }>
-            {move || Suspend::new(async move {
-                let theme = theme_resource.await;
-                if let Ok(theme) = theme {
-                    set_current_theme.set(theme);
-                }
-
-                view! {
-                    <button
-                        on:click=toggle_theme
-                        class="px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 flex items-center space-x-1"
-                        title=move || format!("Current theme: {}", theme_text())
-                    >
-                        <span>{theme_icon}</span>
-                        <span class="text-sm">{theme_text}</span>
-                    </button>
-                }
-            })}
-        </Transition>
+        <button
+            on:click=toggle_theme
+            class="p-2 rounded-full bg-white/20 dark:bg-primary-700 hover:bg-white/30 dark:hover:bg-primary-600 transition-all duration-300 flex items-center space-x-2 hover:cursor-pointer"
+            title=move || format!("Current theme: {}", theme_text())
+        >
+            <span class=move || format!("{} text-lg", theme_icon())></span>
+        </button>
     }
 }

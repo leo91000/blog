@@ -1,5 +1,23 @@
 This project is using latest Leptos version.
 
+# Tailwind Icons
+
+This project uses `@egoist/tailwindcss-icons` with all Iconify icons collection. To use icons in your components:
+
+```rust
+// Use icons with the i-[collection]-[icon-name] format
+<div class="i-mdi-home text-2xl" />  // Material Design Icons
+<span class="i-lucide-github" />     // Lucide Icons 
+<button class="i-heroicons-user" />  // Heroicons
+
+// You can apply colors, sizing and other Tailwind utilities
+<div class="i-mdi-heart text-red-500 dark:text-red-400 text-xl hover:text-red-600" />
+```
+
+For a complete list of available icons, visit:
+- Browse icons: https://icon-sets.iconify.design/
+- Use the collection prefix followed by icon name in kebab-case
+
 # Essential Leptos Guide
 
 ## 1. Component Attribute Binding

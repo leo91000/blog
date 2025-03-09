@@ -58,15 +58,18 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
     use super::utils::db::get_db;
     use super::utils::session;
 
+    tracing::debug!("login 1");
     let conn = get_db();
 
     // Fetch the user
     let mut rows = conn.query(
         "SELECT id, username, password_hash, is_admin, theme_preference, created_at FROM users WHERE username = ?",
-        params![credentials.username]
+        params![credentials.username.clone()],
     ).await?;
 
     let first_row = rows.next().await?;
+
+    tracing::debug!("login 2 {:?}", first_row);
 
     let Some(row) = first_row else {
         return Err(ServerFnError::new("Invalid username or password"));
@@ -86,24 +89,30 @@ pub async fn login(credentials: LoginCredentials) -> Result<User> {
         return Err(ServerFnError::new("Invalid username or password"));
     }
 
+    let theme_preference = crate::models::session::ThemePreference::from_libsql_value(row.get(4)?);
+    let created_at = row.get::<String>(5)?;
+    tracing::debug!("login 3 {:?} {:?}", theme_preference, created_at);
+
     // Get user data
     let user = User {
         id: row.get(0)?,
         username: row.get(1)?,
         password_hash,
         is_admin: row.get(3)?,
-        theme_preference: crate::models::session::ThemePreference::from_libsql_value(row.get(4)?),
+        theme_preference,
         created_at: chrono::NaiveDateTime::parse_from_str(
-            row.get::<String>(4)?.as_str(),
+            created_at.as_str(),
             "%Y-%m-%d %H:%M:%S",
         )?
         .and_utc(),
     };
 
+    tracing::debug!("login 4 {:?}", user);
+
     // Set the user in session
     session::set_user_session(&user.get_session_user()).await?;
 
-    println!("user: {:?}", user);
+    tracing::debug!("login 5 {:?}", user);
 
     Ok(user)
 }
