@@ -1,5 +1,6 @@
 use crate::app::CurrentUser;
 use crate::components::theme_switcher::ThemeSwitcher;
+use leptos::either::EitherOr;
 use leptos::prelude::*;
 use leptos_router::components::A;
 
@@ -93,46 +94,43 @@ pub fn Header() -> impl IntoView {
                             "GitHub"
                         </a>
 
-                        <Await future=current_user.into_future() let:_server_user>
-                            <Show
-                                when=move || current_user.get().flatten().is_some()
-                                fallback=not_auth_buttons
-                            >
-                                <div class="flex space-x-4 items-center">
-                                    {current_user
-                                        .get()
-                                        .flatten()
-                                        .filter(|user| user.is_admin)
-                                        .map(|_| {
-                                            view! {
+                        <Await future=current_user.into_future() let:server_user>
+                            {server_user
+                                .clone()
+                                .either_or(
+                                    |user| {
+                                        view! {
+                                            <div class="flex space-x-4 items-center">
+                                                {if user.is_admin {
+                                                    Some(
+                                                        view! {
+                                                            <A
+                                                                href="/blog/new"
+                                                                attr:class="px-3 sm:px-4 py-2 rounded-full bg-primary-500 hover:bg-primary-400 transition-all duration-300 shadow-sm font-medium flex items-center gap-1"
+                                                            >
+                                                                <span class="i-mdi-plus"></span>
+                                                                "New Post"
+                                                            </A>
+                                                        },
+                                                    )
+                                                } else {
+                                                    None
+                                                }}
+                                                <span class="font-medium text-white/90 mr-2">
+                                                    {format!("Hi, {}", user.username)}
+                                                </span>
                                                 <A
-                                                    href="/blog/new"
-                                                    attr:class="px-3 sm:px-4 py-2 rounded-full bg-primary-500 hover:bg-primary-400 transition-all duration-300 shadow-sm font-medium flex items-center gap-1"
+                                                    href="/logout"
+                                                    attr:class="px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 font-medium text-sm flex items-center gap-1"
                                                 >
-                                                    <span class="i-mdi-plus"></span>
-                                                    "New Post"
+                                                    <span class="i-mdi-logout"></span>
+                                                    "Logout"
                                                 </A>
-                                            }
-                                        })}
-                                    <span class="font-medium text-white/90 mr-2">
-                                        {format!(
-                                            "Hi, {}",
-                                            current_user
-                                                .get()
-                                                .flatten()
-                                                .map(|user| user.username)
-                                                .unwrap_or_default(),
-                                        )}
-                                    </span>
-                                    <A
-                                        href="/logout"
-                                        attr:class="px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 font-medium text-sm flex items-center gap-1"
-                                    >
-                                        <span class="i-mdi-logout"></span>
-                                        "Logout"
-                                    </A>
-                                </div>
-                            </Show>
+                                            </div>
+                                        }
+                                    },
+                                    |_| not_auth_buttons(),
+                                )}
                         </Await>
 
                         <ThemeSwitcher />
@@ -209,88 +207,85 @@ pub fn Header() -> impl IntoView {
                             "GitHub"
                         </a>
 
-                        <Await future=current_user.into_future() let:_server_user>
-                            <Show
-                                when=move || current_user.get().flatten().is_some()
-                                fallback=move || {
-                                    view! {
-                                        <div class=move || {
-                                            let mut base_class = "flex flex-col space-y-2 pt-4 border-t border-white/20 transition-all duration-300"
-                                                .to_string();
-                                            if mobile_menu_open.get() {
-                                                base_class += " opacity-100 translate-y-0 delay-200";
-                                            } else {
-                                                base_class += " opacity-0 translate-y-2";
-                                            }
-                                            base_class
-                                        }>
-                                            <A
-                                                href="/login"
-                                                attr:class="px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 font-medium flex items-center gap-2 justify-center"
-                                                on:click=move |_| set_mobile_menu_open.set(false)
-                                            >
-                                                <span class="i-mdi-login text-xl"></span>
-                                                "Login"
-                                            </A>
-                                            <A
-                                                href="/signup"
-                                                attr:class="px-4 py-2 rounded-full bg-accent-500 hover:bg-accent-400 transition-all duration-300 shadow-sm font-medium flex items-center gap-2 justify-center"
-                                                on:click=move |_| set_mobile_menu_open.set(false)
-                                            >
-                                                <span class="i-mdi-account-plus text-xl"></span>
-                                                "Signup"
-                                            </A>
-                                        </div>
-                                    }
-                                }
-                            >
-                                <div class=move || {
-                                    let mut base_class = "flex flex-col space-y-2 pt-4 border-t border-white/20 transition-all duration-300"
-                                        .to_string();
-                                    if mobile_menu_open.get() {
-                                        base_class += " opacity-100 translate-y-0 delay-200";
-                                    } else {
-                                        base_class += " opacity-0 translate-y-2";
-                                    }
-                                    base_class
-                                }>
+                        <Await future=current_user.into_future() let:server_user>
+                            {server_user
+                                .clone()
+                                .either_or(
+                                    |user| {
+                                        view! {
+                                            <div class=move || {
+                                                let mut base_class = "flex flex-col space-y-2 pt-4 border-t border-white/20 transition-all duration-300"
+                                                    .to_string();
+                                                if mobile_menu_open.get() {
+                                                    base_class += " opacity-100 translate-y-0 delay-200";
+                                                } else {
+                                                    base_class += " opacity-0 translate-y-2";
+                                                }
+                                                base_class
+                                            }>
 
-                                    {current_user
-                                        .get()
-                                        .flatten()
-                                        .filter(|user| user.is_admin)
-                                        .map(|_| {
-                                            view! {
+                                                {if user.is_admin {
+                                                    Some(
+                                                        view! {
+                                                            <A
+                                                                href="/blog/new"
+                                                                attr:class="px-4 py-2 rounded-full bg-primary-500 hover:bg-primary-400 transition-all duration-300 shadow-sm font-medium flex items-center gap-2 justify-center"
+                                                                on:click=move |_| set_mobile_menu_open.set(false)
+                                                            >
+                                                                <span class="i-mdi-plus text-xl"></span>
+                                                                "New Post"
+                                                            </A>
+                                                        },
+                                                    )
+                                                } else {
+                                                    None
+                                                }}
+                                                <span class="font-medium text-white/90 px-2 py-1 text-center">
+                                                    {format!("Hi, {}", user.username)}
+                                                </span>
                                                 <A
-                                                    href="/blog/new"
-                                                    attr:class="px-4 py-2 rounded-full bg-primary-500 hover:bg-primary-400 transition-all duration-300 shadow-sm font-medium flex items-center gap-2 justify-center"
+                                                    href="/logout"
+                                                    attr:class="px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 font-medium flex items-center gap-2 justify-center"
                                                     on:click=move |_| set_mobile_menu_open.set(false)
                                                 >
-                                                    <span class="i-mdi-plus text-xl"></span>
-                                                    "New Post"
+                                                    <span class="i-mdi-logout text-xl"></span>
+                                                    "Logout"
                                                 </A>
-                                            }
-                                        })}
-                                    <span class="font-medium text-white/90 px-2 py-1 text-center">
-                                        {format!(
-                                            "Hi, {}",
-                                            current_user
-                                                .get()
-                                                .flatten()
-                                                .map(|user| user.username)
-                                                .unwrap_or_default(),
-                                        )}
-                                    </span>
-                                    <A
-                                        href="/logout"
-                                        attr:class="px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 font-medium flex items-center gap-2 justify-center"
-                                        on:click=move |_| set_mobile_menu_open.set(false)
-                                    >
-                                        <span class="i-mdi-logout text-xl"></span>
-                                        "Logout"
-                                    </A>
-                                </div>
-                            </Show>
+                                            </div>
+                                        }
+                                    },
+                                    |_| {
+                                        view! {
+                                            <div class=move || {
+                                                let mut base_class = "flex flex-col space-y-2 pt-4 border-t border-white/20 transition-all duration-300"
+                                                    .to_string();
+                                                if mobile_menu_open.get() {
+                                                    base_class += " opacity-100 translate-y-0 delay-200";
+                                                } else {
+                                                    base_class += " opacity-0 translate-y-2";
+                                                }
+                                                base_class
+                                            }>
+                                                <A
+                                                    href="/login"
+                                                    attr:class="px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300 font-medium flex items-center gap-2 justify-center"
+                                                    on:click=move |_| set_mobile_menu_open.set(false)
+                                                >
+                                                    <span class="i-mdi-login text-xl"></span>
+                                                    "Login"
+                                                </A>
+                                                <A
+                                                    href="/signup"
+                                                    attr:class="px-4 py-2 rounded-full bg-accent-500 hover:bg-accent-400 transition-all duration-300 shadow-sm font-medium flex items-center gap-2 justify-center"
+                                                    on:click=move |_| set_mobile_menu_open.set(false)
+                                                >
+                                                    <span class="i-mdi-account-plus text-xl"></span>
+                                                    "Signup"
+                                                </A>
+                                            </div>
+                                        }
+                                    },
+                                )}
                         </Await>
 
                         <div class=move || {
